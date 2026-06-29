@@ -1,0 +1,12 @@
+{
+  "name": "rastreio-ran",
+  "version": "1.0.0",
+  "description": "RAN - Rastreio para Avaliação Neuropsicológica por Aline Vicente",
+  "private": true,
+  "dependencies": {
+    "openai": "^6.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
