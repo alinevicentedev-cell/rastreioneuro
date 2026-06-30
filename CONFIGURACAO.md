@@ -100,8 +100,32 @@ Na Netlify, adicione:
 |---|---|
 | `MERCADOPAGO_ACCESS_TOKEN` | Access Token do Mercado Pago |
 | `SITE_URL` | `https://rastreioneuro.com.br` ou a URL temporaria da Netlify |
+| `RASTREIONE_COUPONS` | opcional. Cupons internos de desconto |
+| `RASTREIONE_PAYMENT_AMOUNT` | opcional. Valor base do rastreio. Se ficar vazio, usa `89.99` |
 
 O site cria automaticamente o checkout de R$ 89,99 e retorna para o relatorio quando o pagamento e aprovado.
+
+### Cupom interno de desconto
+
+E possivel criar cupons de 1% ate 100%.
+
+Use principalmente para gerar relatorios internos sem pagar. O cupom nao deve ficar no codigo do site nem no GitHub. Ele fica salvo apenas como variavel privada da Netlify.
+
+Na Netlify, em **Site configuration > Environment variables**, adicione:
+
+| Variavel | Exemplo |
+|---|---|
+| `RASTREIONE_COUPONS` | `[{"code":"SEUCUPOM100","discount":100},{"code":"DESCONTO50","discount":50}]` |
+
+Como funciona:
+
+- Cupom de `100`: libera o relatorio completo direto, sem abrir o Mercado Pago.
+- Cupom menor que `100`: cria o checkout com valor reduzido.
+- Cupom invalido: o relatorio continua bloqueado e o site mostra aviso.
+
+Voce pode trocar os codigos quando quiser na Netlify. Depois de alterar uma variavel, faca um novo deploy ou reinicie o deploy do site.
+
+Importante: nao compartilhe o cupom de 100% publicamente. Quem tiver esse codigo podera liberar o relatorio sem pagar.
 
 ### Teste do pagamento
 
@@ -109,8 +133,9 @@ O site cria automaticamente o checkout de R$ 89,99 e retorna para o relatorio qu
 2. Publique o site novamente na Netlify.
 3. Faca um rastreio completo.
 4. Clique para desbloquear o relatorio.
-5. Use os cartoes de teste indicados pela documentacao do Mercado Pago.
-6. Quando tudo estiver funcionando, troque para as credenciais de producao.
+5. Para testar cupom interno, digite o codigo configurado em `RASTREIONE_COUPONS`.
+6. Para testar pagamento real, use os cartoes de teste indicados pela documentacao do Mercado Pago.
+7. Quando tudo estiver funcionando, troque para as credenciais de producao.
 
 ---
 
@@ -148,8 +173,8 @@ Voce tambem pode configurar notificacoes por e-mail dentro da Netlify.
 2. Responde 77 perguntas de rastreio.
 3. O sistema calcula 13 indicadores.
 4. A pessoa ve apenas uma previa limitada.
-5. Para ver todas as porcentagens, sintese clinica, graficos e baixar PDF/Word, ela paga R$ 89,99.
-6. Apos pagamento aprovado, o relatorio completo e liberado.
+5. Para ver todas as porcentagens, sintese clinica, graficos e baixar PDF/Word, ela paga R$ 89,99 ou usa um cupom valido.
+6. Apos pagamento aprovado ou cupom interno de 100%, o relatorio completo e liberado.
 
 ---
 
@@ -158,6 +183,7 @@ Voce tambem pode configurar notificacoes por e-mail dentro da Netlify.
 - `OPENAI_API_KEY` configurada na Netlify.
 - `MERCADOPAGO_ACCESS_TOKEN` configurado na Netlify.
 - `SITE_URL` configurada com a URL correta.
+- Se usar cupom interno, `RASTREIONE_COUPONS` configurado apenas na Netlify.
 - Deploy novo feito depois de salvar as variaveis.
 - Pagamento testado em sandbox.
 - Pagamento testado em producao com valor real baixo, se possivel.
@@ -184,4 +210,3 @@ Para cada venda de R$ 89,99, o valor liquido depende da taxa do Mercado Pago e d
 ## 10. Suporte tecnico
 
 E-mail de suporte: `neuropsicologaalinevicente@gmail.com`
-

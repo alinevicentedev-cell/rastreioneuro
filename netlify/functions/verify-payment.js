@@ -16,7 +16,7 @@ exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') return { statusCode: 405, headers, body: 'Method Not Allowed' };
 
   try {
-    const { paymentId } = JSON.parse(event.body || '{}');
+    const { paymentId, sessionId } = JSON.parse(event.body || '{}');
 
     if (!paymentId) {
       return { statusCode: 400, headers, body: JSON.stringify({ error: 'paymentId obrigatório' }) };
@@ -29,6 +29,18 @@ exports.handler = async (event) => {
 
     // Consulta detalhes do pagamento na API do MP
     const payment = await getMPPayment(paymentId, accessToken);
+
+    if (sessionId && payment.external_reference && payment.external_reference !== sessionId) {
+      return {
+        statusCode: 200,
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          approved: false,
+          status: 'reference_mismatch',
+          statusDetail: 'O pagamento não pertence a esta sessão.',
+        }),
+      };
+    }
 
     if (payment.status === 'approved') {
       return {

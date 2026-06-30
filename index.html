@@ -390,6 +390,15 @@ body{
 .unlock-list{display:grid;gap:8px;margin:4px 0}
 .unlock-list span{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:.82rem}
 .unlock-list span::before{content:"";width:7px;height:7px;border-radius:50%;background:linear-gradient(135deg,#2dd4bf,#ffd27a)}
+.coupon-box{margin:12px 0 18px;padding:14px;border:1px solid rgba(255,255,255,.10);border-radius:16px;background:rgba(255,255,255,.045)}
+.coupon-label{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:9px;font-size:.74rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#cbd5e1}
+.coupon-label span:last-child{font-size:.68rem;font-weight:600;letter-spacing:0;text-transform:none;color:var(--faint)}
+.coupon-row{display:grid;grid-template-columns:1fr auto;gap:8px}
+.coupon-input{text-transform:uppercase;letter-spacing:.04em}
+.coupon-btn{border:1px solid rgba(255,255,255,.13);background:rgba(255,255,255,.08);color:var(--white);border-radius:12px;padding:0 16px;font-size:.78rem;font-weight:800;cursor:pointer}
+.coupon-status{min-height:18px;margin-top:8px;font-size:.74rem;color:var(--faint);line-height:1.45}
+.coupon-status.ok{color:#5eead4}
+.coupon-status.err{color:#fb7185}
 .neuro-3d-bg{position:absolute;inset:0;z-index:2;pointer-events:none;overflow:hidden;perspective:1100px}
 .brain-holo{
   position:absolute;width:260px;aspect-ratio:1;border-radius:45% 55% 48% 52%;
@@ -911,6 +920,15 @@ body{
     <div class="price-big">R$ 89,99</div>
     <div class="price-period">Pagamento único · Acesso imediato ao relatório</div>
 
+    <div class="coupon-box">
+      <div class="coupon-label"><span>Cupom de acesso</span><span>Opcional</span></div>
+      <div class="coupon-row">
+        <input class="coupon-input" type="text" maxlength="32" placeholder="Digite seu cupom">
+        <button class="coupon-btn" type="button" onclick="initiatePayment(this)">Aplicar</button>
+      </div>
+      <div class="coupon-status"></div>
+    </div>
+
     <div style="display:flex;gap:8px;justify-content:center;margin-bottom:22px;flex-wrap:wrap">
       <span style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:6px 12px;font-size:.78rem;color:var(--muted);display:flex;align-items:center;gap:6px">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M4 4h16v12H4z" stroke="#94a3b8" stroke-width="1.5" rx="2"/><path d="M8 20h8M12 16v4" stroke="#94a3b8" stroke-width="1.5" stroke-linecap="round"/></svg>
@@ -1281,6 +1299,14 @@ function renderPreview(){
       <span>Características e critérios marcados</span>
       <span>Resumo para levar ao especialista</span>
     </div>
+    <div class="coupon-box">
+      <div class="coupon-label"><span>Cupom de acesso</span><span>Opcional</span></div>
+      <div class="coupon-row">
+        <input class="coupon-input" type="text" maxlength="32" placeholder="Digite seu cupom">
+        <button class="coupon-btn" type="button" onclick="initiatePayment(this)">Aplicar</button>
+      </div>
+      <div class="coupon-status"></div>
+    </div>
     <button class="btn btn-gold" onclick="initiatePayment(this)">Desbloquear R$ 89,99 →</button>
   </div>`;
   const lockedCards=sorted.slice(1,5).map(d=>`
@@ -1299,22 +1325,78 @@ function renderPreview(){
 }
 
 // ── PAGAMENTO ─────────────────────────────────────
+function paymentScope(btn){
+  return btn?.closest('.pw-card,.unlock-preview-card')||document;
+}
+
+function couponCodeFrom(scope){
+  return (scope.querySelector('.coupon-input')?.value||'').trim().toUpperCase();
+}
+
+function setCouponStatus(scope,msg,type=''){
+  const el=scope.querySelector('.coupon-status');
+  if(!el)return;
+  el.textContent=msg||'';
+  el.className='coupon-status'+(type?` ${type}`:'');
+}
+
+function openFullReportFromSession(){
+  const s=JSON.parse(localStorage.getItem('ran_session')||'{}');
+  if(s.scores){
+    App.userData=s.userData||App.userData;
+    App.answers=s.answers||{};
+    App.scores=s.scores;
+    App.analysis=s.analysis||{};
+    window.history.replaceState({},'',window.location.pathname);
+    renderFullResults();goTo('full-results');
+    return true;
+  }
+  if(Object.keys(App.scores||{}).length){
+    renderFullResults();goTo('full-results');
+    return true;
+  }
+  return false;
+}
+
 async function initiatePayment(btnEl){
   const btn=btnEl||document.querySelector('#screen-preview .btn-gold');
+  const scope=paymentScope(btn);
+  const couponCode=couponCodeFrom(scope);
+  const couponOnly=btn.classList.contains('coupon-btn');
+  if(couponOnly&&!couponCode){
+    setCouponStatus(scope,'Digite um cupom para validar.','err');
+    return;
+  }
+  const originalText=btn.dataset.originalText||btn.textContent;
+  btn.dataset.originalText=originalText;
   btn.textContent='Aguarde...';btn.disabled=true;
+  setCouponStatus(scope,couponCode?'Validando cupom...':'');
   try{
     const sid='ran_'+Date.now()+'_'+Math.random().toString(36).substr(2,8);
     localStorage.setItem('ran_pid',sid);
     const r=await fetch('/.netlify/functions/create-payment',{
       method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({sessionId:sid,userName:App.userData.name,amount:89.99})
+      body:JSON.stringify({sessionId:sid,userName:App.userData.name,couponCode})
     });
-    if(!r.ok)throw new Error();
     const data=await r.json();
+    if(!r.ok)throw new Error(data.error||'Não foi possível validar o pagamento.');
+    if(data.freeAccess){
+      localStorage.setItem('ran_coupon_unlock',JSON.stringify({
+        couponCode:data.couponCode,discountPercent:data.discountPercent,ts:Date.now()
+      }));
+      setCouponStatus(scope,'Cupom aplicado. Relatório completo liberado.','ok');
+      if(!openFullReportFromSession())alert('Cupom aplicado, mas não encontrei a sessão do rastreio. Refaça o rastreio para gerar o relatório.');
+      return;
+    }
+    if(!data.init_point)throw new Error('Checkout não retornou link de pagamento.');
+    if(data.discountPercent>0){
+      setCouponStatus(scope,`Cupom aplicado: ${data.discountPercent}% de desconto. Redirecionando...`,'ok');
+    }
     window.location.href=data.init_point;
-  }catch{
-    btn.textContent='💳 Pagar com Mercado Pago';btn.disabled=false;
-    alert('Não foi possível iniciar o pagamento. Verifique sua conexão e tente novamente.');
+  }catch(err){
+    btn.textContent=originalText;btn.disabled=false;
+    setCouponStatus(scope,err.message||'Não foi possível validar o cupom.','err');
+    alert(err.message||'Não foi possível iniciar o pagamento. Verifique sua conexão e tente novamente.');
   }
 }
 
@@ -1326,21 +1408,20 @@ async function checkPaymentReturn(){
   if(!status)return;
   if(status==='approved'&&pid){
     try{
+      const sid=localStorage.getItem('ran_pid')||'';
       const r=await fetch('/.netlify/functions/verify-payment',{
-        method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({paymentId:pid})
+        method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({paymentId:pid,sessionId:sid})
       });
-      if(r.ok){
-        const s=JSON.parse(localStorage.getItem('ran_session')||'{}');
-        if(s.scores){
-          App.userData=s.userData;App.answers=s.answers||{};App.scores=s.scores;App.analysis=s.analysis||{};
-          window.history.replaceState({},'',window.location.pathname);
-          renderFullResults();goTo('full-results');return;
-        }
+      const data=await r.json();
+      if(r.ok&&data.approved){
+        if(openFullReportFromSession())return;
       }
     }catch{}
-    alert('Pagamento confirmado! Se o relatório não abrir, recarregue a página.');
+    alert('Ainda não consegui confirmar o pagamento automaticamente. Se ele já foi aprovado, recarregue a página em alguns instantes.');
   }else if(status==='pending'){
     alert('Seu pagamento está em análise. Assim que confirmado, o relatório será liberado.');
+  }else if(status==='failure'){
+    alert('O pagamento não foi concluído. Você pode tentar novamente quando quiser.');
   }
 }
 
