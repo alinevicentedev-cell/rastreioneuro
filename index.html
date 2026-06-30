@@ -42,8 +42,8 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--white);min-
 
 /* ── LOGO ── */
 .logo{display:inline-flex;align-items:center;gap:10px}
-.logo-img{display:block;height:44px;width:auto;max-width:260px;border-radius:12px;object-fit:contain;filter:drop-shadow(0 8px 28px rgba(45,212,191,.12))}
-.logo-icon{display:block;width:34px;height:34px;border-radius:50%;object-fit:cover;box-shadow:0 0 24px rgba(45,212,191,.18)}
+.logo-img{display:block;height:54px;width:auto;max-width:330px;border-radius:0;object-fit:contain;filter:drop-shadow(0 0 18px rgba(45,212,191,.18)) drop-shadow(0 10px 34px rgba(0,0,0,.32))}
+.logo-icon{display:block;width:34px;height:34px;border-radius:50%;object-fit:cover;filter:drop-shadow(0 0 18px rgba(45,212,191,.24))}
 .logo-name{font-family:'Playfair Display',serif;font-size:1.15rem;font-weight:700;letter-spacing:-.02em}
 .logo-sub{display:none}
 
@@ -258,7 +258,7 @@ body{
   border-bottom:1px solid rgba(255,255,255,.07);
   backdrop-filter:blur(18px);
 }
-.land-nav .logo-img{height:48px;max-width:284px}
+.land-nav .logo-img{height:58px;max-width:340px}
 .land-nav-actions{display:flex;align-items:center;gap:10px}
 .nav-chip{
   color:var(--muted);font-size:.78rem;text-decoration:none;border:1px solid rgba(255,255,255,.10);
@@ -480,7 +480,7 @@ body{
 
 @media(max-width:768px){
   .land-nav{padding:16px 20px}
-  .land-nav .logo-img{height:38px;max-width:190px}
+  .land-nav .logo-img{height:42px;max-width:216px}
   .quiz-nav{gap:10px;padding:14px 12px}
   .quiz-nav .logo span{display:none}
   .quiz-nav-back{padding:8px 12px;font-size:.74rem}
@@ -547,7 +547,7 @@ body{
 
 <nav class="land-nav">
   <div class="logo">
-    <img class="logo-img" src="assets/logo-rastreioneuro.png" alt="RastreioNeuro">
+    <img class="logo-img" src="assets/logo-rastreioneuro-transparente.png" alt="RastreioNeuro">
   </div>
   <div class="land-nav-actions">
     <a class="nav-chip" href="#exemplo-relatorio">Exemplo</a>
@@ -886,7 +886,7 @@ body{
 <div id="screen-quiz" class="screen">
 <div class="quiz-nav">
   <div class="logo" style="flex-shrink:0">
-    <img class="logo-icon" src="assets/logo-cerebro.png" alt="RastreioNeuro">
+    <img class="logo-icon" src="assets/logo-cerebro-transparente.png" alt="RastreioNeuro">
     <span style="font-size:.8rem;font-weight:600">RastreioNeuro</span>
   </div>
   <button class="quiz-nav-back" id="quiz-nav-back" onclick="prevQ()" disabled>← Voltar</button>
