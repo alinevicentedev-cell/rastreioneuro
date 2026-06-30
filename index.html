@@ -998,7 +998,7 @@ body{
       Leve este relatório a uma consulta com a Neuropsicóloga Aline Vicente ou outro profissional de saúde mental de sua confiança. Uma avaliação neuropsicológica completa permitirá confirmar os achados deste rastreio e criar um plano de cuidados personalizado para você.
     </p>
     <a href="https://www.neuropsicologaalinevicente.com.br" target="_blank" class="btn btn-primary" style="text-decoration:none;display:inline-block">
-      Agendar Avaliação com Aline Vicente →
+      Agendar Avaliação com a Neuropsicóloga Aline Vicente →
     </a>
   </div>
 </div>
@@ -1643,6 +1643,42 @@ function downloadPDF(){
   const{jsPDF}=window.jspdf;
   const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
   const W=210,H=297,M=18;let y=M;
+  const dark=[15,23,42],muted=[71,85,105],line=[226,232,240],soft=[248,250,252];
+  const sorted=[...DISORDERS].sort((a,b)=>(App.scores[b.id]||0)-(App.scores[a.id]||0));
+  const snap=buildClinicalSnapshot(sorted);
+  const top=snap.top||sorted[0];
+  const ensure=(need=24)=>{
+    if(y+need>H-18){doc.addPage();y=M;}
+  };
+  const rgb=(hex)=>{
+    const clean=hex.replace('#','');
+    return [parseInt(clean.substr(0,2),16),parseInt(clean.substr(2,2),16),parseInt(clean.substr(4,2),16)];
+  };
+  function radarImageForPdf(canvas){
+    const copy=document.createElement('canvas');
+    copy.width=canvas.width||900;copy.height=canvas.height||650;
+    const ctx=copy.getContext('2d');
+    ctx.fillStyle='#0b0d10';ctx.fillRect(0,0,copy.width,copy.height);
+    ctx.drawImage(canvas,0,0,copy.width,copy.height);
+    return copy.toDataURL('image/png',1);
+  }
+  const chartCanvas=document.getElementById('radarChart');
+  const chartImage=chartCanvas&&chartCanvas.toDataURL?radarImageForPdf(chartCanvas):null;
+  const textBlock=(text,x,width,lineH=4.2)=>{
+    const lines=doc.splitTextToSize(String(text||''),width);
+    lines.forEach(ln=>{
+      ensure(10);
+      doc.text(ln,x,y);y+=lineH;
+    });
+    return lines.length;
+  };
+  const sectionTitle=(title)=>{
+    ensure(16);
+    doc.setTextColor(...dark);doc.setFont('helvetica','bold');doc.setFontSize(11);
+    doc.text(title,M,y);
+    doc.setDrawColor(45,212,191);doc.setLineWidth(.7);doc.line(M,y+2,W-M,y+2);
+    y+=9;
+  };
 
   // Header
   doc.setFillColor(6,9,24);doc.rect(0,0,W,52,'F');
@@ -1659,74 +1695,76 @@ function downloadPDF(){
   y=62;
 
   // Disclaimer
-  doc.setFillColor(20,20,50);doc.setDrawColor(124,58,237);
+  doc.setFillColor(255,247,237);doc.setDrawColor(244,184,96);
   doc.rect(M,y,W-M*2,14,'FD');
-  doc.setTextColor(180,140,255);doc.setFontSize(7.5);doc.setFont('helvetica','bold');
-  doc.text('⚠ AVISO IMPORTANTE: Rastreio de autorrelato estruturado segundo DSM-5-TR e CID-11.',M+3,y+5.5);
+  doc.setTextColor(124,45,18);doc.setFontSize(7.5);doc.setFont('helvetica','bold');
+  doc.text('AVISO IMPORTANTE: Rastreio de autorrelato estruturado segundo DSM-5-TR e CID-11.',M+3,y+5.5);
   doc.setFont('helvetica','normal');
-  doc.text('NÃO constitui diagnóstico clínico. Resultados devem ser interpretados por profissional qualificado.',M+3,y+10.5);
+  doc.text('NAO constitui diagnostico clinico. Resultados devem ser interpretados por profissional qualificado.',M+3,y+10.5);
   y+=20;
 
-  const sorted=[...DISORDERS].sort((a,b)=>(App.scores[b.id]||0)-(App.scores[a.id]||0));
-  const snap=buildClinicalSnapshot(sorted);
-  const top=snap.top;
-
   // Executive summary
-  doc.setFillColor(15,19,48);doc.setDrawColor(45,212,191);
+  doc.setFillColor(...soft);doc.setDrawColor(...line);
   doc.rect(M,y,W-M*2,34,'FD');
-  doc.setTextColor(244,184,96);doc.setFontSize(7);doc.setFont('helvetica','bold');
+  doc.setTextColor(124,58,237);doc.setFontSize(7);doc.setFont('helvetica','bold');
   doc.text('RESUMO EXECUTIVO',M+5,y+6);
-  doc.setTextColor(248,250,252);doc.setFontSize(12);
+  doc.setTextColor(...dark);doc.setFontSize(12);
   doc.text(`Principal eixo: ${top.name} (${App.scores[top.id]||0}%)`,M+5,y+13);
-  doc.setTextColor(190,200,205);doc.setFontSize(7.4);doc.setFont('helvetica','normal');
-  const sumLines=doc.splitTextToSize(`Leitura baseada em autorrelato estruturado segundo DSM-5-TR e CID-11. A interpretação deve considerar início, duração, curso episódico ou persistente, prejuízo funcional e presença em diferentes contextos antes de qualquer conclusão diagnóstica.`,W-M*2-10);
+  doc.setTextColor(...muted);doc.setFontSize(7.4);doc.setFont('helvetica','normal');
+  const sumLines=doc.splitTextToSize('Leitura baseada em autorrelato estruturado segundo DSM-5-TR e CID-11. A interpretacao deve considerar inicio, duracao, curso episodico ou persistente, prejuizo funcional e presenca em diferentes contextos antes de qualquer conclusao diagnostica.',W-M*2-10);
   sumLines.slice(0,3).forEach((ln,idx)=>doc.text(ln,M+5,y+19+idx*4));
-  doc.setTextColor(248,250,252);doc.setFontSize(8);doc.setFont('helvetica','bold');
+  doc.setTextColor(...dark);doc.setFontSize(8);doc.setFont('helvetica','bold');
   doc.text(`${snap.high.length} alto(s)`,M+5,y+31);
-  doc.text(`${snap.mid.length} intermediário(s)`,M+42,y+31);
-  doc.text('77 perguntas clínicas',M+90,y+31);
+  doc.text(`${snap.mid.length} intermediario(s)`,M+42,y+31);
+  doc.text('77 perguntas clinicas',M+90,y+31);
   y+=42;
 
-  doc.setTextColor(248,250,252);doc.setFontSize(10);doc.setFont('helvetica','bold');
-  doc.text('LEITURA DIFERENCIAL PARA CONSULTA',M,y);y+=6;
-  doc.setTextColor(170,180,200);doc.setFontSize(7.5);doc.setFont('helvetica','normal');
+  sectionTitle('LEITURA DIFERENCIAL PARA CONSULTA');
+  doc.setTextColor(...muted);doc.setFontSize(8);doc.setFont('helvetica','normal');
   snap.notes.slice(0,4).forEach(note=>{
     const lines=doc.splitTextToSize(`- ${note}`,W-M*2);
-    lines.forEach(ln=>{doc.text(ln,M,y);y+=4;});
+    lines.forEach(ln=>{ensure(9);doc.text(ln,M,y);y+=4.2;});
     y+=1;
   });
   y+=5;
 
+  if(chartImage){
+    sectionTitle('GRAFICO DO RESULTADO GERAL');
+    ensure(86);
+    doc.setFillColor(11,13,16);doc.setDrawColor(45,212,191);
+    doc.roundedRect(M,y,W-M*2,82,4,4,'FD');
+    doc.addImage(chartImage,'PNG',M+22,y+6,130,70);
+    y+=90;
+  }
+
   if(App.userData.description){
-    doc.setTextColor(248,250,252);doc.setFontSize(10);doc.setFont('helvetica','bold');
-    doc.text('AUTODESCRICAO INFORMADA',M,y);y+=6;
-    doc.setTextColor(170,180,200);doc.setFontSize(7.8);doc.setFont('helvetica','normal');
+    sectionTitle('AUTODESCRICAO INFORMADA');
+    doc.setTextColor(...muted);doc.setFontSize(8);doc.setFont('helvetica','normal');
     const descLines=doc.splitTextToSize(App.userData.description,W-M*2);
-    descLines.slice(0,8).forEach(ln=>{doc.text(ln,M,y);y+=4.2;});
+    descLines.slice(0,10).forEach(ln=>{ensure(9);doc.text(ln,M,y);y+=4.2;});
     y+=6;
   }
 
   // Scores
-  doc.setTextColor(248,250,252);doc.setFontSize(12);doc.setFont('helvetica','bold');
-  doc.text('PERFIL DE RASTREIO',M,y);y+=7;
+  sectionTitle('PERFIL DE RASTREIO');
 
   sorted.forEach(d=>{
+    ensure(18);
     const pct=App.scores[d.id]||0;
     const lv=levelOf(pct);
-    const hex=d.color.replace('#','');
-    const r=parseInt(hex.substr(0,2),16),g=parseInt(hex.substr(2,2),16),b=parseInt(hex.substr(4,2),16);
-    doc.setFillColor(15,19,48);doc.rect(M,y,W-M*2,13,'F');
+    const [r,g,b]=rgb(d.color);
+    doc.setFillColor(...soft);doc.setDrawColor(...line);doc.rect(M,y,W-M*2,13,'FD');
     doc.setFillColor(r,g,b);doc.rect(M,y,3,13,'F');
-    doc.setTextColor(248,250,252);doc.setFontSize(8);doc.setFont('helvetica','bold');
+    doc.setTextColor(...dark);doc.setFontSize(8);doc.setFont('helvetica','bold');
     doc.text(d.full,M+6,y+5.5);
     doc.setTextColor(r,g,b);doc.setFontSize(10);
     doc.text(pct+'%',M+6,y+10.5);
     const bx=M+78,bw=W-M*2-82;
-    doc.setFillColor(25,30,65);doc.rect(bx,y+3.5,bw,5,'F');
+    doc.setFillColor(226,232,240);doc.rect(bx,y+3.5,bw,5,'F');
     doc.setFillColor(r,g,b);doc.rect(bx,y+3.5,bw*(pct/100),5,'F');
-    doc.setTextColor(148,163,184);doc.setFontSize(6.5);doc.setFont('helvetica','normal');
+    doc.setTextColor(...muted);doc.setFontSize(6.5);doc.setFont('helvetica','normal');
     doc.text(lv.lbl,W-M-36,y+7);
-    y+=15;if(y>H-30){doc.addPage();y=M;}
+    y+=15;
   });
   y+=8;
 
@@ -1735,29 +1773,25 @@ function downloadPDF(){
     const pct=App.scores[d.id]||0;
     const lv=levelOf(pct);
     const txt=App.analysis[d.id]||buildFallbackAnalysis()[d.id];
-    if(y>H-55){doc.addPage();y=M;}
-    const hex=d.color.replace('#','');
-    const r=parseInt(hex.substr(0,2),16),g=parseInt(hex.substr(2,2),16),b=parseInt(hex.substr(4,2),16);
-    doc.setFillColor(15,19,48);doc.rect(M,y,W-M*2,7,'F');
+    ensure(45);
+    const [r,g,b]=rgb(d.color);
+    doc.setFillColor(...soft);doc.setDrawColor(...line);doc.rect(M,y,W-M*2,8,'FD');
     doc.setFillColor(r,g,b);doc.rect(M,y,3,7,'F');
-    doc.setTextColor(r,g,b);doc.setFontSize(9);doc.setFont('helvetica','bold');
-    doc.text(`${d.full} — ${pct}% (${lv.lbl})`,M+6,y+4.8);y+=10;
-    doc.setTextColor(170,180,200);doc.setFontSize(7.8);doc.setFont('helvetica','normal');
-    const lines=doc.splitTextToSize(txt,W-M*2);
-    lines.forEach(ln=>{
-      if(y>H-18){doc.addPage();y=M;}
-      doc.text(ln,M,y);y+=4.2;
-    });
+    doc.setTextColor(...dark);doc.setFontSize(9);doc.setFont('helvetica','bold');
+    doc.text(`${d.full} - ${pct}% (${lv.lbl})`,M+6,y+5.2);y+=12;
+    doc.setTextColor(51,65,85);doc.setFontSize(8);doc.setFont('helvetica','normal');
+    textBlock(txt,M,W-M*2,4.3);
     const hi=markedItems(d.id,2,4);
     if(hi.length){
       y+=2;
-      doc.setTextColor(248,250,252);doc.setFontSize(7.5);doc.setFont('helvetica','bold');
-      doc.text('Marcadores clinicos mais relevantes',M,y);y+=4.2;
-      doc.setTextColor(150,160,178);doc.setFontSize(7.2);doc.setFont('helvetica','normal');
+      ensure(12);
+      doc.setTextColor(...dark);doc.setFontSize(7.5);doc.setFont('helvetica','bold');
+      doc.text('Marcadores clinicos mais relevantes',M,y);y+=4.5;
+      doc.setTextColor(...muted);doc.setFontSize(7.2);doc.setFont('helvetica','normal');
       hi.forEach(item=>{
         const markerLines=doc.splitTextToSize(`- ${item.q.cat}: ${item.q.text} (${item.label})`,W-M*2);
         markerLines.forEach(ln=>{
-          if(y>H-18){doc.addPage();y=M;}
+          ensure(9);
           doc.text(ln,M,y);y+=3.8;
         });
       });
@@ -1770,7 +1804,7 @@ function downloadPDF(){
   for(let i=1;i<=np;i++){
     doc.setPage(i);
     doc.setFillColor(6,9,24);doc.rect(0,H-11,W,11,'F');
-    doc.setTextColor(70,80,100);doc.setFontSize(6.5);
+    doc.setTextColor(203,213,225);doc.setFontSize(6.5);
     doc.text('RastreioNeuro | rastreioneuro.com.br | Este documento não substitui avaliação clínica profissional.',M,H-4);
     doc.text(`Pág. ${i}/${np}`,W-M-10,H-4);
   }
