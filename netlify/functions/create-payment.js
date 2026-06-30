@@ -77,9 +77,9 @@ exports.handler = async (event) => {
       },
       external_reference: sessionId,
       back_urls: {
-        success: `${siteUrl}/?status=approved`,
-        failure: `${siteUrl}/?status=failure`,
-        pending: `${siteUrl}/?status=pending`,
+        success: `${siteUrl}/?status=approved&session_id=${encodeURIComponent(sessionId)}`,
+        failure: `${siteUrl}/?status=failure&session_id=${encodeURIComponent(sessionId)}`,
+        pending: `${siteUrl}/?status=pending&session_id=${encodeURIComponent(sessionId)}`,
       },
       auto_return: 'approved',
       statement_descriptor: 'RASTREIONEURO',

@@ -428,6 +428,10 @@ body{
 .coupon-status{min-height:18px;margin-top:8px;font-size:.74rem;color:var(--faint);line-height:1.45}
 .coupon-status.ok{color:#5eead4}
 .coupon-status.err{color:#fb7185}
+.payment-help{margin-top:12px;border-top:1px solid rgba(255,255,255,.10);padding-top:12px}
+.payment-help p{font-size:.73rem;color:var(--faint);line-height:1.45;margin-bottom:8px}
+.payment-check-btn{width:100%;border:1px solid rgba(45,212,191,.28);background:rgba(45,212,191,.08);color:#a7fff3;border-radius:12px;padding:11px 14px;font-size:.8rem;font-weight:800;cursor:pointer}
+.payment-check-btn:disabled{opacity:.52;cursor:not-allowed}
 .neuro-3d-bg{position:absolute;inset:0;z-index:2;pointer-events:none;overflow:hidden;perspective:1100px}
 .brain-holo{
   position:absolute;width:260px;aspect-ratio:1;border-radius:45% 55% 48% 52%;
@@ -968,6 +972,11 @@ body{
       Desbloquear por R$ 89,99 →
     </button>
 
+    <div class="payment-help">
+      <p>Pagou via Pix e o relatório não abriu automaticamente?</p>
+      <button class="payment-check-btn" type="button" onclick="verifyPaidAccess(this)">Já paguei via Pix, verificar liberação</button>
+    </div>
+
     <p style="font-size:.73rem;color:var(--faint);text-align:center;margin-top:12px;line-height:1.5">
       Você será redirecionado(a) para o ambiente seguro do Mercado Pago para concluir o pagamento. Após a confirmação, o relatório completo é liberado automaticamente.
     </p>
@@ -1359,6 +1368,10 @@ function renderPreview(){
       <div class="coupon-status"></div>
     </div>
     <button class="btn btn-gold" onclick="initiatePayment(this)">Desbloquear R$ 89,99 →</button>
+    <div class="payment-help">
+      <p>Pagou via Pix e o relatório não abriu automaticamente?</p>
+      <button class="payment-check-btn" type="button" onclick="verifyPaidAccess(this)">Já paguei via Pix, verificar liberação</button>
+    </div>
   </div>`;
   const lockedCards=sorted.slice(1,5).map(d=>`
       <div class="dis-card">
@@ -1391,13 +1404,20 @@ function setCouponStatus(scope,msg,type=''){
   el.className='coupon-status'+(type?` ${type}`:'');
 }
 
-function openFullReportFromSession(){
+function restoreSessionState(){
   const s=JSON.parse(localStorage.getItem('ran_session')||'{}');
   if(s.scores){
     App.userData=s.userData||App.userData;
     App.answers=s.answers||{};
     App.scores=s.scores;
     App.analysis=s.analysis||{};
+    return true;
+  }
+  return false;
+}
+
+function openFullReportFromSession(){
+  if(restoreSessionState()){
     window.history.replaceState({},'',window.location.pathname);
     renderFullResults();goTo('full-results');
     return true;
@@ -1440,6 +1460,7 @@ async function initiatePayment(btnEl){
       return;
     }
     if(!data.init_point)throw new Error('Checkout não retornou link de pagamento.');
+    if(data.id)localStorage.setItem('ran_preference_id',data.id);
     if(data.discountPercent>0){
       setCouponStatus(scope,`Cupom aplicado: ${data.discountPercent}% de desconto. Redirecionando...`,'ok');
     }
@@ -1451,15 +1472,46 @@ async function initiatePayment(btnEl){
   }
 }
 
+async function verifyPaidAccess(btnEl){
+  const btn=btnEl;
+  const originalText=btn?.textContent||'Já paguei via Pix, verificar liberação';
+  const sid=localStorage.getItem('ran_pid')||new URLSearchParams(window.location.search).get('session_id')||'';
+  if(!sid){
+    alert('Não encontrei a sessão deste rastreio neste navegador. Se o pagamento foi feito em outro aparelho, use o cupom interno para liberar ou refaça o rastreio no mesmo navegador.');
+    return;
+  }
+  if(btn){btn.textContent='Verificando pagamento...';btn.disabled=true;}
+  try{
+    const r=await fetch('/.netlify/functions/verify-payment',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({sessionId:sid})
+    });
+    const data=await r.json();
+    if(r.ok&&data.approved){
+      if(openFullReportFromSession())return;
+      alert('Pagamento aprovado, mas não encontrei as respostas salvas neste navegador. Reabra no mesmo aparelho usado para responder ou use um cupom interno para gerar novamente.');
+      return;
+    }
+    const status=data.status==='pending'?'Pagamento ainda pendente. Pix pode levar alguns instantes para confirmar.':'Ainda não encontrei pagamento aprovado para este rastreio.';
+    alert(status+' Tente verificar novamente em alguns segundos.');
+  }catch{
+    alert('Não foi possível verificar o pagamento agora. Tente novamente em alguns instantes.');
+  }finally{
+    if(btn){btn.textContent=originalText;btn.disabled=false;}
+  }
+}
+
 // ── RETORNO DO PAGAMENTO ──────────────────────────
 async function checkPaymentReturn(){
   const p=new URLSearchParams(window.location.search);
   const status=p.get('status')||p.get('collection_status');
   const pid=p.get('payment_id')||p.get('collection_id');
+  const sid=p.get('session_id')||p.get('external_reference')||localStorage.getItem('ran_pid')||'';
+  if(sid)localStorage.setItem('ran_pid',sid);
   if(!status)return;
-  if(status==='approved'&&pid){
+  if(status==='approved'||status==='pending'){
     try{
-      const sid=localStorage.getItem('ran_pid')||'';
       const r=await fetch('/.netlify/functions/verify-payment',{
         method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({paymentId:pid,sessionId:sid})
       });
@@ -1468,9 +1520,13 @@ async function checkPaymentReturn(){
         if(openFullReportFromSession())return;
       }
     }catch{}
+    if(status==='pending'){
+      alert('Seu pagamento está em análise. Se foi Pix, aguarde alguns segundos e clique em "Já paguei via Pix, verificar liberação".');
+      window.history.replaceState({},'',window.location.pathname);
+      if(restoreSessionState()){renderPreview();goTo('preview');}
+      return;
+    }
     alert('Ainda não consegui confirmar o pagamento automaticamente. Se ele já foi aprovado, recarregue a página em alguns instantes.');
-  }else if(status==='pending'){
-    alert('Seu pagamento está em análise. Assim que confirmado, o relatório será liberado.');
   }else if(status==='failure'){
     alert('O pagamento não foi concluído. Você pode tentar novamente quando quiser.');
   }

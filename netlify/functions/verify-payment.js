@@ -18,8 +18,8 @@ exports.handler = async (event) => {
   try {
     const { paymentId, sessionId } = JSON.parse(event.body || '{}');
 
-    if (!paymentId) {
-      return { statusCode: 400, headers, body: JSON.stringify({ error: 'paymentId obrigatório' }) };
+    if (!paymentId && !sessionId) {
+      return { statusCode: 400, headers, body: JSON.stringify({ error: 'paymentId ou sessionId obrigatório' }) };
     }
 
     const accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN;
@@ -28,7 +28,21 @@ exports.handler = async (event) => {
     }
 
     // Consulta detalhes do pagamento na API do MP
-    const payment = await getMPPayment(paymentId, accessToken);
+    const payment = paymentId
+      ? await getMPPayment(paymentId, accessToken)
+      : await findApprovedPaymentByReference(sessionId, accessToken);
+
+    if (!payment) {
+      return {
+        statusCode: 200,
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          approved: false,
+          status: 'not_found',
+          statusDetail: 'Pagamento aprovado ainda não encontrado para esta sessão.',
+        }),
+      };
+    }
 
     if (sessionId && payment.external_reference && payment.external_reference !== sessionId) {
       return {
@@ -97,6 +111,43 @@ function getMPPayment(paymentId, accessToken) {
           } else {
             resolve(parsed);
           }
+        } catch (e) {
+          reject(new Error(`Parse error: ${data}`));
+        }
+      });
+    });
+
+    req.on('error', reject);
+    req.end();
+  });
+}
+
+function findApprovedPaymentByReference(sessionId, accessToken) {
+  return new Promise((resolve, reject) => {
+    const query = `/v1/payments/search?external_reference=${encodeURIComponent(sessionId)}&sort=date_created&criteria=desc`;
+    const options = {
+      hostname: 'api.mercadopago.com',
+      path: query,
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+      },
+    };
+
+    const req = https.request(options, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => {
+        try {
+          const parsed = JSON.parse(data);
+          if (res.statusCode >= 400) {
+            reject(new Error(`MP API error ${res.statusCode}: ${JSON.stringify(parsed)}`));
+            return;
+          }
+
+          const payments = Array.isArray(parsed.results) ? parsed.results : [];
+          const approved = payments.find(payment => payment.status === 'approved');
+          resolve(approved || payments[0] || null);
         } catch (e) {
           reject(new Error(`Parse error: ${data}`));
         }
