@@ -148,6 +148,27 @@ textarea{min-height:96px;resize:vertical;line-height:1.55}
 .radar-wrap{max-width:560px;margin:36px auto;padding:0 24px}
 .sec-lbl{font-size:.72rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);text-align:center;margin-bottom:16px}
 .disclaimer-box{background:rgba(124,58,237,.08);border:1px solid rgba(124,58,237,.2);border-radius:18px;padding:24px;margin:0 24px 28px;max-width:1100px}
+.report-overview{max-width:1100px;margin:0 auto 28px;padding:0 24px;display:grid;grid-template-columns:1.15fr .85fr;gap:14px}
+.overview-card{background:linear-gradient(145deg,rgba(31,35,43,.88),rgba(17,20,23,.92));border:1px solid rgba(255,255,255,.11);border-radius:20px;padding:24px;position:relative;overflow:hidden}
+.overview-card::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 12% 0,rgba(45,212,191,.12),transparent 16rem),radial-gradient(circle at 88% 12%,rgba(244,184,96,.10),transparent 18rem);pointer-events:none}
+.overview-card>*{position:relative;z-index:1}
+.overview-kicker{font-size:.68rem;font-weight:800;letter-spacing:.11em;text-transform:uppercase;color:var(--gold);margin-bottom:9px}
+.overview-title{font-family:'Playfair Display',serif;font-size:1.45rem;line-height:1.12;margin-bottom:10px}
+.overview-copy{font-size:.86rem;color:var(--muted);line-height:1.7}
+.metric-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:18px}
+.metric{border:1px solid rgba(255,255,255,.10);background:rgba(255,255,255,.045);border-radius:14px;padding:13px}
+.metric strong{display:block;font-size:1.45rem;line-height:1;color:var(--white);margin-bottom:4px}
+.metric span{font-size:.72rem;color:var(--muted);line-height:1.35}
+.diff-list{display:grid;gap:9px;margin-top:14px}
+.diff-item{border:1px solid rgba(255,255,255,.09);background:rgba(255,255,255,.045);border-radius:14px;padding:12px;font-size:.79rem;color:#d7dedf;line-height:1.55}
+.diff-item b{color:var(--gold)}
+.priority-list{display:grid;gap:10px;margin-top:16px}
+.priority-row{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center}
+.priority-dot{width:10px;height:10px;border-radius:50%}
+.priority-name{font-size:.82rem;font-weight:700}
+.priority-track{height:7px;background:rgba(255,255,255,.08);border-radius:999px;overflow:hidden}
+.priority-fill{height:100%;border-radius:inherit}
+.priority-pct{font-size:.8rem;font-weight:800}
 .ana-cards{display:grid;gap:14px;padding:0 24px 70px;max-width:1100px;margin:0 auto}
 .ana-card{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:26px}
 .ana-ch{display:flex;align-items:center;gap:14px;margin-bottom:18px}
@@ -428,6 +449,8 @@ body{
   .q-card{padding:24px 18px}
   .pw-card{padding:28px 20px}
   .res-grid{grid-template-columns:1fr}
+  .report-overview{grid-template-columns:1fr;padding:0 18px}
+  .metric-grid{grid-template-columns:1fr}
   .land-nav-actions{display:none}
   .land-hero{padding:44px 20px 20px}
   .hero-h1{font-size:clamp(2.25rem,13vw,3.5rem)}
@@ -940,6 +963,8 @@ body{
   <canvas id="radarChart"></canvas>
 </div>
 
+<div class="report-overview" id="report-overview"></div>
+
 <div style="padding:0 24px;max-width:1100px;margin:0 auto 28px">
   <div class="disclaimer-box">
     <strong>⚠️ Aviso Clínico Importante:</strong> Este relatório é uma ferramenta de rastreio baseada em autorrelato estruturado segundo DSM-5-TR e CID-11. <strong>Não constitui diagnóstico clínico</strong>. Percentuais elevados indicam que vale investigar com um especialista — não que você tenha o transtorno. Os resultados devem ser interpretados por profissional de saúde mental qualificado.
@@ -1046,7 +1071,7 @@ const QUESTIONS=[
   // TOC
   {text:'Tem pensamentos, imagens ou impulsos repetitivos, intrusivos e indesejados que geram ansiedade ou nojo?',d:'toc',cat:'Obsessões'},
   {text:'Tenta neutralizar esses pensamentos com checagens, limpeza, contagem, repetição, oração, organização ou busca de certeza?',d:'toc',cat:'Compulsões'},
-  {text:'Sente que precisa realizar certas ações até ficar "certo", "completo" ou seguro, mesmo sabendo que pode ser excessivo?',d:'toc',cat:'Sensação de Complepletude'},
+  {text:'Sente que precisa realizar certas ações até ficar "certo", "completo" ou seguro, mesmo sabendo que pode ser excessivo?',d:'toc',cat:'Sensação de Completude'},
   {text:'Quanto tempo por dia esses pensamentos ou rituais costumam ocupar?',d:'toc',cat:'Tempo Gasto',opts:'duration'},
   {text:'Esses pensamentos ou comportamentos causam sofrimento, atrasos, conflitos ou prejuízo na rotina?',d:'toc',cat:'Impacto Funcional',opts:'impact'},
   {text:'Consegue considerar que esses medos ou rituais podem estar exagerados, pelo menos em alguns momentos?',d:'toc',cat:'Insight'},
@@ -1208,7 +1233,7 @@ async function runAnalysis(){
 
   // Salva sessão no localStorage para recuperar após pagamento
   localStorage.setItem('ran_session',JSON.stringify({
-    userData:App.userData,scores:App.scores,analysis:App.analysis,ts:Date.now()
+    userData:App.userData,answers:App.answers,scores:App.scores,analysis:App.analysis,ts:Date.now()
   }));
 
   setTimeout(()=>{renderPreview();goTo('preview');},6200);
@@ -1307,7 +1332,7 @@ async function checkPaymentReturn(){
       if(r.ok){
         const s=JSON.parse(localStorage.getItem('ran_session')||'{}');
         if(s.scores){
-          App.userData=s.userData;App.scores=s.scores;App.analysis=s.analysis||{};
+          App.userData=s.userData;App.answers=s.answers||{};App.scores=s.scores;App.analysis=s.analysis||{};
           window.history.replaceState({},'',window.location.pathname);
           renderFullResults();goTo('full-results');return;
         }
@@ -1320,19 +1345,105 @@ async function checkPaymentReturn(){
 }
 
 // ── RESULTADO COMPLETO ────────────────────────────
+function answerMeta(i){
+  const q=QUESTIONS[i];
+  const opts=optionsFor(q);
+  const idx=App.answers[i]??0;
+  const picked=opts[idx]||opts[0];
+  return {q,idx,value:picked.v||0,label:picked.t};
+}
+
+function markedItems(disorderId,min=2,limit=5){
+  return QUESTIONS.map((q,i)=>answerMeta(i))
+    .filter(item=>item.q.d===disorderId&&item.value>=min)
+    .sort((a,b)=>b.value-a.value)
+    .slice(0,limit);
+}
+
+function buildClinicalSnapshot(sorted){
+  const high=sorted.filter(d=>(App.scores[d.id]||0)>66);
+  const mid=sorted.filter(d=>(App.scores[d.id]||0)>33&&(App.scores[d.id]||0)<=66);
+  const top=sorted[0];
+  const top3=sorted.slice(0,3);
+  const notes=[];
+  const score=id=>App.scores[id]||0;
+  const hasHigh=id=>score(id)>66;
+  const hasMid=id=>score(id)>33;
+
+  if(hasHigh('tea')||hasHigh('tdah')){
+    notes.push('Neurodesenvolvimento: investigar sinais desde a infância, presença em múltiplos contextos e estratégias de compensação/camuflagem.');
+  }
+  if(hasHigh('bipolar')||hasHigh('cyclo')||(hasMid('bipolar')&&hasMid('cyclo'))){
+    notes.push('Humor episódico: checar duração das fases, aumento de energia, redução de sono, prejuízo e histórico familiar para diferenciar bipolaridade/ciclotimia.');
+  }
+  if(hasHigh('tpb')&&(hasMid('bipolar')||hasHigh('bipolar')||hasHigh('cyclo'))){
+    notes.push('Diferencial afetivo: separar reatividade emocional interpessoal de episódios de humor sustentados e autônomos.');
+  }
+  if(hasHigh('tag')||hasHigh('panic')||hasHigh('agor')||hasHigh('tas')){
+    notes.push('Ansiedade: mapear foco principal do medo, evitação, ataques inesperados, preocupação difusa e impacto funcional.');
+  }
+  if(hasHigh('toc')||hasHigh('tpoc')){
+    notes.push('TOC/TPOC: diferenciar obsessões intrusivas e compulsões de estilo persistente de perfeccionismo, controle e inflexibilidade.');
+  }
+  const riskItem=QUESTIONS.map((q,i)=>answerMeta(i)).find(item=>item.q.d==='dep'&&item.q.cat==='Risco'&&item.value>=2);
+  if(riskItem){
+    notes.push('Atenção clínica: respostas indicam pensamentos de morte/autolesão. Buscar avaliação profissional imediata se houver risco atual.');
+  }
+  if(!notes.length){
+    notes.push('Perfil sem concentração alta em um único eixo; ainda assim, interpretar história, duração e prejuízo com profissional qualificado.');
+  }
+
+  return {high,mid,top,top3,notes};
+}
+
+function renderReportOverview(sorted){
+  const snap=buildClinicalSnapshot(sorted);
+  const topName=snap.top?.name||'Indicador';
+  const topFull=snap.top?.full||'Indicador principal';
+  const topPct=App.scores[snap.top?.id]||0;
+  const priorities=snap.top3.map(d=>{
+    const pct=App.scores[d.id]||0;
+    return `<div class="priority-row">
+      <div class="priority-dot" style="background:${d.color}"></div>
+      <div>
+        <div class="priority-name">${escapeHTML(d.name)}</div>
+        <div class="priority-track"><div class="priority-fill" style="width:${pct}%;background:${d.color}"></div></div>
+      </div>
+      <div class="priority-pct" style="color:${d.color}">${pct}%</div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('report-overview').innerHTML=`
+    <div class="overview-card">
+      <div class="overview-kicker">Resumo executivo</div>
+      <h3 class="overview-title">Principal eixo de investigação: ${escapeHTML(topName)}</h3>
+      <p class="overview-copy">O maior indicador foi <strong>${escapeHTML(topFull)}</strong>, com ${topPct}%. A leitura deve considerar tempo de duração, idade de início, curso episódico ou persistente, prejuízo funcional e presença em diferentes contextos antes de qualquer conclusão diagnóstica.</p>
+      <div class="metric-grid">
+        <div class="metric"><strong>${snap.high.length}</strong><span>categoria(s) com indicadores significativos</span></div>
+        <div class="metric"><strong>${snap.mid.length}</strong><span>categoria(s) com possíveis traços</span></div>
+        <div class="metric"><strong>77</strong><span>perguntas clínicas respondidas</span></div>
+      </div>
+      <div class="priority-list">${priorities}</div>
+    </div>
+    <div class="overview-card">
+      <div class="overview-kicker">Leitura diferencial</div>
+      <h3 class="overview-title">Pontos para discutir em consulta</h3>
+      <div class="diff-list">${snap.notes.map(n=>`<div class="diff-item">${escapeHTML(n).replace(/^([^:]+):/,'<b>$1:</b>')}</div>`).join('')}</div>
+    </div>`;
+}
+
 function renderFullResults(){
   document.getElementById('fr-name').textContent=App.userData.name;
   document.getElementById('fr-date').textContent='Gerado em '+new Date().toLocaleDateString('pt-BR');
   buildRadar();
 
   const sorted=[...DISORDERS].sort((a,b)=>(App.scores[b.id]||0)-(App.scores[a.id]||0));
+  renderReportOverview(sorted);
   document.getElementById('ana-cards').innerHTML=sorted.map(d=>{
     const pct=App.scores[d.id]||0;
     const lv=levelOf(pct);
     const txt=App.analysis[d.id]||buildFallbackAnalysis()[d.id];
-    const hi=QUESTIONS.map((q,i)=>({q,i}))
-      .filter(({q,i})=>q.d===d.id&&(App.answers[i]??0)>=2)
-      .map(({q})=>q.text).slice(0,4);
+    const hi=markedItems(d.id,2,5);
     return`<div class="ana-card">
       <div class="ana-ch">
         <div class="ana-bar-v" style="background:${d.color}"></div>
@@ -1349,8 +1460,8 @@ function renderFullResults(){
       <p class="ana-txt">${txt}</p>
       ${hi.length?`
         <div style="margin-top:16px">
-          <div style="font-size:.7rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);margin-bottom:8px">Critérios com maior frequência relatada</div>
-          <ul class="symp-list">${hi.map(q=>`<li class="symp-item"><div class="symp-d" style="background:${d.color}"></div>${q}</li>`).join('')}</ul>
+          <div style="font-size:.7rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);margin-bottom:8px">Marcadores clínicos mais relevantes</div>
+          <ul class="symp-list">${hi.map(item=>`<li class="symp-item"><div class="symp-d" style="background:${d.color}"></div><span><strong>${escapeHTML(item.q.cat)}:</strong> ${escapeHTML(item.q.text)} <em style="color:var(--faint)">(${escapeHTML(item.label)})</em></span></li>`).join('')}</ul>
         </div>`:''}
     </div>`;
   }).join('');
@@ -1406,15 +1517,13 @@ function downloadWord(){
     const pct=App.scores[d.id]||0;
     const lv=levelOf(pct);
     const txt=App.analysis[d.id]||buildFallbackAnalysis()[d.id];
-    const hi=QUESTIONS.map((q,i)=>({q,i}))
-      .filter(({q,i})=>q.d===d.id&&(App.answers[i]??0)>=2)
-      .map(({q})=>q.text).slice(0,5);
+    const hi=markedItems(d.id,2,5);
     return`
       <section>
         <h2>${escapeHTML(d.full)} - ${pct}% (${escapeHTML(lv.lbl)})</h2>
         <div class="bar"><span style="width:${pct}%;background:${d.color}"></span></div>
         <p>${escapeHTML(txt)}</p>
-        ${hi.length?`<h3>Critérios com maior frequência relatada</h3><ul>${hi.map(q=>`<li>${escapeHTML(q)}</li>`).join('')}</ul>`:''}
+        ${hi.length?`<h3>Marcadores clínicos mais relevantes</h3><ul>${hi.map(item=>`<li><strong>${escapeHTML(item.q.cat)}:</strong> ${escapeHTML(item.q.text)} (${escapeHTML(item.label)})</li>`).join('')}</ul>`:''}
       </section>`;
   }).join('');
   const desc=App.userData.description?`<section><h2>Autodescrição informada</h2><p>${escapeHTML(App.userData.description)}</p></section>`:'';
@@ -1477,6 +1586,36 @@ function downloadPDF(){
   doc.text('NÃO constitui diagnóstico clínico. Resultados devem ser interpretados por profissional qualificado.',M+3,y+10.5);
   y+=20;
 
+  const sorted=[...DISORDERS].sort((a,b)=>(App.scores[b.id]||0)-(App.scores[a.id]||0));
+  const snap=buildClinicalSnapshot(sorted);
+  const top=snap.top;
+
+  // Executive summary
+  doc.setFillColor(15,19,48);doc.setDrawColor(45,212,191);
+  doc.rect(M,y,W-M*2,34,'FD');
+  doc.setTextColor(244,184,96);doc.setFontSize(7);doc.setFont('helvetica','bold');
+  doc.text('RESUMO EXECUTIVO',M+5,y+6);
+  doc.setTextColor(248,250,252);doc.setFontSize(12);
+  doc.text(`Principal eixo: ${top.name} (${App.scores[top.id]||0}%)`,M+5,y+13);
+  doc.setTextColor(190,200,205);doc.setFontSize(7.4);doc.setFont('helvetica','normal');
+  const sumLines=doc.splitTextToSize(`Leitura baseada em autorrelato estruturado segundo DSM-5-TR e CID-11. A interpretação deve considerar início, duração, curso episódico ou persistente, prejuízo funcional e presença em diferentes contextos antes de qualquer conclusão diagnóstica.`,W-M*2-10);
+  sumLines.slice(0,3).forEach((ln,idx)=>doc.text(ln,M+5,y+19+idx*4));
+  doc.setTextColor(248,250,252);doc.setFontSize(8);doc.setFont('helvetica','bold');
+  doc.text(`${snap.high.length} alto(s)`,M+5,y+31);
+  doc.text(`${snap.mid.length} intermediário(s)`,M+42,y+31);
+  doc.text('77 perguntas clínicas',M+90,y+31);
+  y+=42;
+
+  doc.setTextColor(248,250,252);doc.setFontSize(10);doc.setFont('helvetica','bold');
+  doc.text('LEITURA DIFERENCIAL PARA CONSULTA',M,y);y+=6;
+  doc.setTextColor(170,180,200);doc.setFontSize(7.5);doc.setFont('helvetica','normal');
+  snap.notes.slice(0,4).forEach(note=>{
+    const lines=doc.splitTextToSize(`- ${note}`,W-M*2);
+    lines.forEach(ln=>{doc.text(ln,M,y);y+=4;});
+    y+=1;
+  });
+  y+=5;
+
   if(App.userData.description){
     doc.setTextColor(248,250,252);doc.setFontSize(10);doc.setFont('helvetica','bold');
     doc.text('AUTODESCRICAO INFORMADA',M,y);y+=6;
@@ -1490,7 +1629,6 @@ function downloadPDF(){
   doc.setTextColor(248,250,252);doc.setFontSize(12);doc.setFont('helvetica','bold');
   doc.text('PERFIL DE RASTREIO',M,y);y+=7;
 
-  const sorted=[...DISORDERS].sort((a,b)=>(App.scores[b.id]||0)-(App.scores[a.id]||0));
   sorted.forEach(d=>{
     const pct=App.scores[d.id]||0;
     const lv=levelOf(pct);
@@ -1529,6 +1667,20 @@ function downloadPDF(){
       if(y>H-18){doc.addPage();y=M;}
       doc.text(ln,M,y);y+=4.2;
     });
+    const hi=markedItems(d.id,2,4);
+    if(hi.length){
+      y+=2;
+      doc.setTextColor(248,250,252);doc.setFontSize(7.5);doc.setFont('helvetica','bold');
+      doc.text('Marcadores clinicos mais relevantes',M,y);y+=4.2;
+      doc.setTextColor(150,160,178);doc.setFontSize(7.2);doc.setFont('helvetica','normal');
+      hi.forEach(item=>{
+        const markerLines=doc.splitTextToSize(`- ${item.q.cat}: ${item.q.text} (${item.label})`,W-M*2);
+        markerLines.forEach(ln=>{
+          if(y>H-18){doc.addPage();y=M;}
+          doc.text(ln,M,y);y+=3.8;
+        });
+      });
+    }
     y+=7;
   });
 
