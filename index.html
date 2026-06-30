@@ -435,6 +435,8 @@ body{
 .payment-notice{max-width:820px;margin:18px auto 0;border:1px solid rgba(45,212,191,.24);background:rgba(45,212,191,.08);border-radius:18px;padding:16px 18px;color:#d9fffb;font-size:.84rem;line-height:1.58}
 .payment-notice strong{display:block;color:#5eead4;margin-bottom:4px}
 .payment-notice[hidden]{display:none}
+.checkout-note{margin:12px 0 14px;border:1px solid rgba(244,184,96,.22);background:rgba(244,184,96,.08);border-radius:14px;padding:12px 14px;color:#f7e3b1;font-size:.76rem;line-height:1.52}
+.checkout-note strong{color:#ffd27a}
 .neuro-3d-bg{position:absolute;inset:0;z-index:2;pointer-events:none;overflow:hidden;perspective:1100px}
 .brain-holo{
   position:absolute;width:260px;aspect-ratio:1;border-radius:45% 55% 48% 52%;
@@ -976,6 +978,10 @@ body{
       Desbloquear por R$ 89,99 →
     </button>
 
+    <div class="checkout-note">
+      <strong>Após pagar:</strong> toque em “Voltar para...” na tela do Mercado Pago para liberar o relatório. Se não abrir automaticamente, use o botão de verificação abaixo.
+    </div>
+
     <div class="payment-help">
       <p>Pagou e o relatório não abriu automaticamente?</p>
       <button class="payment-check-btn" type="button" onclick="verifyPaidAccess(this)">Já paguei, verificar liberação</button>
@@ -1372,6 +1378,9 @@ function renderPreview(){
       <div class="coupon-status"></div>
     </div>
     <button class="btn btn-gold" onclick="initiatePayment(this)">Desbloquear R$ 89,99 →</button>
+    <div class="checkout-note">
+      <strong>Após pagar:</strong> toque em “Voltar para...” na tela do Mercado Pago para liberar o relatório.
+    </div>
     <div class="payment-help">
       <p>Pagou e o relatório não abriu automaticamente?</p>
       <button class="payment-check-btn" type="button" onclick="verifyPaidAccess(this)">Já paguei, verificar liberação</button>
@@ -1545,6 +1554,34 @@ async function checkPaymentReturn(){
   }else if(status==='failure'){
     alert('O pagamento não foi concluído. Você pode tentar novamente quando quiser.');
   }
+}
+
+async function resumeCheckoutIfNeeded(){
+  const p=new URLSearchParams(window.location.search);
+  if(p.get('status')||p.get('collection_status'))return;
+  const sid=localStorage.getItem('ran_pid')||'';
+  if(!sid)return;
+  const s=JSON.parse(localStorage.getItem('ran_session')||'{}');
+  if(!s.scores)return;
+  const age=Date.now()-(s.ts||0);
+  if(age>72*60*60*1000)return;
+
+  restoreSessionState();
+  try{
+    const r=await fetch('/.netlify/functions/verify-payment',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({sessionId:sid})
+    });
+    const data=await r.json();
+    if(r.ok&&data.approved){
+      openFullReportFromSession();
+      return;
+    }
+  }catch{}
+
+  renderPreview();goTo('preview');
+  showPaymentNotice('Pagamento em andamento', 'Se você já concluiu o pagamento, clique em "Já paguei, verificar liberação". Em pagamentos por Pix, pode ser necessário tocar em "Voltar para..." na tela do Mercado Pago.');
 }
 
 // ── RESULTADO COMPLETO ────────────────────────────
@@ -1972,10 +2009,11 @@ function initLandingMotion(){
 }
 
 // ── INIT ─────────────────────────────────────────
-document.addEventListener('DOMContentLoaded',()=>{
+document.addEventListener('DOMContentLoaded',async()=>{
   document.getElementById('u-bdate').max=new Date().toISOString().split('T')[0];
   initLandingMotion();
-  checkPaymentReturn();
+  await checkPaymentReturn();
+  await resumeCheckoutIfNeeded();
 });
 </script>
 </body>
