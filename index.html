@@ -75,6 +75,8 @@ textarea{min-height:96px;resize:vertical;line-height:1.55}
 /* ── QUIZ ── */
 #screen-quiz{min-height:100vh;display:flex;flex-direction:column}
 .quiz-nav{padding:18px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:18px}
+.quiz-nav-back{background:rgba(255,255,255,.06);border:1px solid var(--border);color:var(--white);border-radius:999px;padding:9px 15px;font-size:.78rem;font-weight:700;cursor:pointer;white-space:nowrap}
+.quiz-nav-back:disabled{opacity:.35;cursor:not-allowed}
 .prog-track{flex:1;height:4px;background:rgba(255,255,255,.1);border-radius:100px;overflow:hidden}
 .prog-fill{height:100%;background:linear-gradient(90deg,#7c3aed,#f59e0b);border-radius:100px;transition:width .4s ease}
 .prog-txt{font-size:.78rem;color:var(--muted);white-space:nowrap}
@@ -456,6 +458,9 @@ body{
 
 @media(max-width:768px){
   .land-nav{padding:16px 20px}
+  .quiz-nav{gap:10px;padding:14px 12px}
+  .quiz-nav .logo span{display:none}
+  .quiz-nav-back{padding:8px 12px;font-size:.74rem}
   .land-hero{padding:54px 20px 36px}
   .features{grid-template-columns:1fr;padding:0 20px 56px}
   .dis-strip{padding:20px 20px 56px}
@@ -877,6 +882,7 @@ body{
     </svg>
     <span style="font-size:.8rem;font-weight:600">RastreioNeuro</span>
   </div>
+  <button class="quiz-nav-back" id="quiz-nav-back" onclick="prevQ()" disabled>← Voltar</button>
   <div class="prog-track"><div class="prog-fill" id="prog-fill" style="width:0%"></div></div>
   <div class="prog-txt" id="prog-txt">1 / 77</div>
 </div>
@@ -1179,6 +1185,8 @@ function renderQ(){
   const pct=Math.round(((i+1)/total)*100);
   document.getElementById('prog-fill').style.width=pct+'%';
   document.getElementById('prog-txt').textContent=(i+1)+' / '+total;
+  const navBack=document.getElementById('quiz-nav-back');
+  if(navBack)navBack.disabled=i===0;
   const q=QUESTIONS[i];
   const dis=DISORDERS.find(d=>d.id===q.d);
   const opts=optionsFor(q);
