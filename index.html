@@ -973,8 +973,8 @@ body{
     </button>
 
     <div class="payment-help">
-      <p>Pagou via Pix e o relatório não abriu automaticamente?</p>
-      <button class="payment-check-btn" type="button" onclick="verifyPaidAccess(this)">Já paguei via Pix, verificar liberação</button>
+      <p>Pagou e o relatório não abriu automaticamente?</p>
+      <button class="payment-check-btn" type="button" onclick="verifyPaidAccess(this)">Já paguei, verificar liberação</button>
     </div>
 
     <p style="font-size:.73rem;color:var(--faint);text-align:center;margin-top:12px;line-height:1.5">
@@ -1369,8 +1369,8 @@ function renderPreview(){
     </div>
     <button class="btn btn-gold" onclick="initiatePayment(this)">Desbloquear R$ 89,99 →</button>
     <div class="payment-help">
-      <p>Pagou via Pix e o relatório não abriu automaticamente?</p>
-      <button class="payment-check-btn" type="button" onclick="verifyPaidAccess(this)">Já paguei via Pix, verificar liberação</button>
+      <p>Pagou e o relatório não abriu automaticamente?</p>
+      <button class="payment-check-btn" type="button" onclick="verifyPaidAccess(this)">Já paguei, verificar liberação</button>
     </div>
   </div>`;
   const lockedCards=sorted.slice(1,5).map(d=>`
@@ -1474,7 +1474,7 @@ async function initiatePayment(btnEl){
 
 async function verifyPaidAccess(btnEl){
   const btn=btnEl;
-  const originalText=btn?.textContent||'Já paguei via Pix, verificar liberação';
+  const originalText=btn?.textContent||'Já paguei, verificar liberação';
   const sid=localStorage.getItem('ran_pid')||new URLSearchParams(window.location.search).get('session_id')||'';
   if(!sid){
     alert('Não encontrei a sessão deste rastreio neste navegador. Se o pagamento foi feito em outro aparelho, use o cupom interno para liberar ou refaça o rastreio no mesmo navegador.');
@@ -1521,7 +1521,7 @@ async function checkPaymentReturn(){
       }
     }catch{}
     if(status==='pending'){
-      alert('Seu pagamento está em análise. Se foi Pix, aguarde alguns segundos e clique em "Já paguei via Pix, verificar liberação".');
+      alert('Seu pagamento está em análise. Aguarde alguns segundos e clique em "Já paguei, verificar liberação".');
       window.history.replaceState({},'',window.location.pathname);
       if(restoreSessionState()){renderPreview();goTo('preview');}
       return;
