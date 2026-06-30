@@ -89,6 +89,11 @@ textarea{min-height:96px;resize:vertical;line-height:1.55}
 .opt.sel{background:rgba(124,58,237,.2);border-color:var(--purple)}
 .opt-dot{width:18px;height:18px;border-radius:50%;border:2px solid var(--border);flex-shrink:0;transition:all .15s}
 .opt.sel .opt-dot{background:var(--purple);border-color:var(--purple)}
+.quiz-actions{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:22px}
+.quiz-back,.quiz-next{border-radius:999px;padding:12px 20px;font-size:.86rem}
+.quiz-back{background:rgba(255,255,255,.06);border:1px solid var(--border);color:var(--white)}
+.quiz-next{background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;box-shadow:0 12px 34px rgba(124,58,237,.24)}
+.quiz-actions button:disabled{opacity:.38;cursor:not-allowed;transform:none;box-shadow:none}
 
 /* ── ANALYZING ── */
 #screen-analyzing{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px;text-align:center}
@@ -456,6 +461,8 @@ body{
   .dis-strip{padding:20px 20px 56px}
   .id-card{padding:28px 20px}
   .q-card{padding:24px 18px}
+  .quiz-actions{align-items:stretch;flex-direction:column-reverse}
+  .quiz-back,.quiz-next{width:100%}
   .pw-card{padding:28px 20px}
   .res-grid{grid-template-columns:1fr}
   .report-overview{grid-template-columns:1fr;padding:0 18px}
@@ -1144,6 +1151,7 @@ const App={
   scores:{},
   analysis:{},
   currentQ:0,
+  advanceTimer:null,
   chart:null,
 };
 
@@ -1168,12 +1176,13 @@ function startQuiz(){
 function renderQ(){
   const total=QUESTIONS.length;
   const i=App.currentQ;
-  const pct=Math.round((i/total)*100);
+  const pct=Math.round(((i+1)/total)*100);
   document.getElementById('prog-fill').style.width=pct+'%';
   document.getElementById('prog-txt').textContent=(i+1)+' / '+total;
   const q=QUESTIONS[i];
   const dis=DISORDERS.find(d=>d.id===q.d);
   const opts=optionsFor(q);
+  const answered=App.answers[i]!==undefined;
   document.getElementById('quiz-body').innerHTML=`
     <div class="q-card">
       <span class="q-cat" style="background:${dis.color}22;color:${dis.color}">${dis.icon} ${q.cat}</span>
@@ -1183,6 +1192,10 @@ function renderQ(){
           <button class="opt ${App.answers[i]===idx?'sel':''}" onclick="pickOpt(${i},${idx})">
             <div class="opt-dot"></div>${o.t}
           </button>`).join('')}
+      </div>
+      <div class="quiz-actions">
+        <button class="btn quiz-back" onclick="prevQ()" ${i===0?'disabled':''}>← Voltar</button>
+        <button class="btn quiz-next" onclick="nextQ()" ${answered?'':'disabled'}>${i<total-1?'Continuar':'Finalizar rastreio'} →</button>
       </div>
     </div>`;
 }
@@ -1197,11 +1210,34 @@ function optionsFor(q){
 }
 
 function pickOpt(qi,oi){
+  if(qi!==App.currentQ)return;
+  clearTimeout(App.advanceTimer);
   App.answers[qi]=oi;
-  setTimeout(()=>{
-    if(App.currentQ<QUESTIONS.length-1){App.currentQ++;renderQ();}
-    else{finishQuiz();}
-  },280);
+  renderQ();
+  if(qi<QUESTIONS.length-1){
+    App.advanceTimer=setTimeout(()=>{
+      if(App.currentQ===qi){App.currentQ++;renderQ();}
+    },280);
+  }
+}
+
+function prevQ(){
+  clearTimeout(App.advanceTimer);
+  if(App.currentQ>0){
+    App.currentQ--;
+    renderQ();
+  }
+}
+
+function nextQ(){
+  clearTimeout(App.advanceTimer);
+  if(App.answers[App.currentQ]===undefined)return;
+  if(App.currentQ<QUESTIONS.length-1){
+    App.currentQ++;
+    renderQ();
+  }else{
+    finishQuiz();
+  }
 }
 
 // ── PONTUAÇÃO ─────────────────────────────────────
