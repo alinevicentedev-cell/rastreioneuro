@@ -1,173 +1,187 @@
-# RastreioNeuro – Guia de Configuração e Deploy
+# RastreioNeuro - Guia de Configuracao e Deploy
 
-**rastreioneuro.com.br**
+Dominio principal: `rastreioneuro.com.br`
 
-Siga este guia passo a passo. Não é necessário saber programar — cada etapa está explicada em detalhes.
+Repositorio GitHub: `alinevicentedev-cell/rastreioneuro`
+
+Este projeto esta pronto para publicar na Netlify com:
+
+- site estatico em `index.html`;
+- funcoes serverless em `netlify/functions`;
+- pagamento via Mercado Pago;
+- sintese clinica automatizada via OpenAI;
+- formulario de suporte compativel com Netlify Forms.
+
+Importante: o relatorio e um rastreio baseado em autorrelato estruturado segundo DSM-5-TR e CID-11. Ele nao substitui avaliacao clinica, diagnostico medico, avaliacao neuropsicologica ou atendimento de urgencia.
 
 ---
 
-## Estrutura dos arquivos
+## 1. Estrutura dos arquivos
 
+```text
+rastreioneuro/
+  index.html
+  netlify.toml
+  package.json
+  CONFIGURACAO.md
+  netlify/
+    functions/
+      analyze.js
+      create-payment.js
+      verify-payment.js
 ```
-rastreio-ran/
-├── index.html                          ← O site inteiro (front-end)
-├── netlify.toml                        ← Configuração do Netlify
-├── package.json                        ← Dependências Node.js
-├── netlify/
-│   └── functions/
-│       ├── analyze.js                  ← Análise por IA (OpenAI)
-│       ├── create-payment.js           ← Cria pagamento (Mercado Pago)
-│       └── verify-payment.js           ← Verifica pagamento
-└── CONFIGURACAO.md                     ← Este arquivo
-```
 
-> **Domínio já adquirido:** `rastreioneuro.com.br` (registro.br)
+O que cada arquivo faz:
+
+- `index.html`: site completo, questionario, previa, paywall, relatorio, PDF e Word.
+- `netlify.toml`: configuracao de deploy da Netlify.
+- `package.json`: dependencias usadas pelas funcoes.
+- `analyze.js`: gera a sintese clinica com OpenAI.
+- `create-payment.js`: cria o checkout do Mercado Pago.
+- `verify-payment.js`: verifica se o pagamento foi aprovado.
 
 ---
 
-## ETAPA 1 — Criar conta no GitHub e subir os arquivos
+## 2. Publicar pela Netlify
 
-1. Acesse **github.com** e crie uma conta gratuita (se ainda não tiver)
-2. Clique em **"New repository"** (botão verde no canto superior direito)
-3. Nome do repositório: `rastreio-ran` (ou qualquer nome)
-4. Deixe como **Public** e clique em **"Create repository"**
-5. Na tela seguinte, clique em **"uploading an existing file"**
-6. Arraste a **pasta rastreio-ran inteira** (ou selecione todos os arquivos)
-7. Clique em **"Commit changes"**
+1. Acesse `https://app.netlify.com`.
+2. Clique em **Add new site**.
+3. Escolha **Import an existing project**.
+4. Selecione **GitHub**.
+5. Escolha o repositorio `alinevicentedev-cell/rastreioneuro`.
+6. Confira as configuracoes:
+   - Base directory: deixe vazio.
+   - Build command: deixe vazio.
+   - Publish directory: `.`
+   - Functions directory: `netlify/functions`
+7. Clique em **Deploy site**.
 
----
-
-## ETAPA 2 — Conectar ao Netlify
-
-1. Acesse **netlify.com** e faça login com sua conta GitHub
-2. Clique em **"Add new site" → "Import an existing project"**
-3. Escolha **GitHub** e autorize o acesso
-4. Selecione o repositório `rastreio-ran`
-5. As configurações de build serão detectadas automaticamente (via `netlify.toml`)
-6. Clique em **"Deploy site"**
-
-O Netlify vai gerar uma URL temporária tipo `ran-abc123.netlify.app`. Você pode personalizar depois.
+A Netlify vai gerar uma URL temporaria. Depois voce conecta o dominio `rastreioneuro.com.br`.
 
 ---
 
-## ETAPA 3 — Obter sua chave da API da OpenAI
+## 3. Configurar a OpenAI
 
-Esta é a chave para a análise de IA do relatório.
+1. Acesse `https://platform.openai.com`.
+2. Entre na sua conta.
+3. Verifique se a conta tem billing/creditos ativos.
+4. Va em **API keys**.
+5. Clique em **Create new secret key**.
+6. Copie a chave. Ela comeca com `sk-`.
+7. Na Netlify, va em:
+   **Site configuration** > **Environment variables**.
+8. Adicione:
 
-1. Acesse **platform.openai.com** e crie ou acesse sua conta
-2. Vá em **"API keys"**
-3. Clique em **"Create new secret key"**
-4. Dê um nome (ex: "RastreioNeuro") e clique para criar
-5. **COPIE a chave agora** — ela começa com `sk-...` e não será mostrada novamente
-6. Guarde em local seguro
+| Variavel | Valor |
+|---|---|
+| `OPENAI_API_KEY` | sua chave da OpenAI |
+| `OPENAI_MODEL` | opcional. Se ficar vazio, usa `gpt-5.5` |
 
----
+Depois de salvar as variaveis, va em **Deploys** > **Trigger deploy** > **Deploy site**.
 
-## ETAPA 4 — Obter sua chave do Mercado Pago
-
-1. Acesse **mercadopago.com.br** e faça login na sua conta
-2. Vá em: **Seu Perfil → "Seu negócio" → "Configurações" → "Credenciais"**
-   - Ou acesse diretamente: `mercadopago.com.br/developers/panel/app`
-3. Clique em **"Criar aplicação"**
-   - Nome: `RAN Rastreio` (qualquer nome)
-   - Produto: **Checkout Pro**
-   - Clique em **"Criar aplicação"**
-4. Dentro da aplicação criada, clique em **"Credenciais de produção"**
-5. Você verá dois campos:
-   - **Public Key** — começa com `APP_USR-...`
-   - **Access Token** — começa com `APP_USR-...` (mais longo)
-6. **COPIE o Access Token** — é este que você vai usar
-
-> **Nota sobre modo teste:** Durante os testes, use as "Credenciais de teste/sandbox". Troque para produção quando for ao ar de verdade.
+Observacao: se o modelo escolhido nao estiver disponivel na sua conta, coloque outro modelo disponivel em `OPENAI_MODEL` e publique novamente.
 
 ---
 
-## ETAPA 5 — Configurar as variáveis de ambiente no Netlify
+## 4. Configurar o Mercado Pago
 
-Com as duas chaves em mãos:
+1. Acesse `https://www.mercadopago.com.br/developers/panel/app`.
+2. Clique em **Criar aplicacao**.
+3. Nome sugerido: `RastreioNeuro`.
+4. Produto: **Checkout Pro**.
+5. Depois de criar, abra a aplicacao.
+6. Va em **Credenciais**.
+7. Para testes, copie o **Access Token de teste**.
+8. Para vender de verdade, use o **Access Token de producao**.
 
-1. No Netlify, vá em: **Site → "Site configuration" → "Environment variables"**
-2. Clique em **"Add a variable"** para cada variável abaixo:
+Na Netlify, adicione:
 
-| Nome da variável | Valor |
-|-----------------|-------|
-| `OPENAI_API_KEY` | Sua chave da OpenAI (começa com `sk-`) |
-| `OPENAI_MODEL` | Opcional. Se não preencher, o site usa `gpt-5.5` |
-| `MERCADOPAGO_ACCESS_TOKEN` | Seu Access Token do Mercado Pago |
-| `SITE_URL` | `https://rastreioneuro.com.br` (ou a URL temporária do Netlify) |
+| Variavel | Valor |
+|---|---|
+| `MERCADOPAGO_ACCESS_TOKEN` | Access Token do Mercado Pago |
+| `SITE_URL` | `https://rastreioneuro.com.br` ou a URL temporaria da Netlify |
 
-3. Após adicionar todas, clique em **"Save"**
-4. Vá em **"Deploys" → "Trigger deploy" → "Deploy site"** para o site recarregar com as novas variáveis
+O site cria automaticamente o checkout de R$ 89,99 e retorna para o relatorio quando o pagamento e aprovado.
 
----
+### Teste do pagamento
 
-## ETAPA 6 — Personalizar domínio (opcional mas recomendado)
-
-### Opção A — Usar seu domínio rastreioneuro.com.br (recomendado)
-
-Você já tem o domínio! Siga estes passos:
-
-1. No Netlify, vá em **"Domain management" → "Add custom domain"**
-2. Digite `rastreioneuro.com.br` e confirme
-3. O Netlify vai mostrar os **nameservers** (servidores DNS) que você precisa configurar
-4. Acesse **registro.br/painel/dominios** → clique em `rastreioneuro.com.br` → **"Editar DNS"**
-5. Substitua os nameservers atuais pelos que o Netlify indicar (normalmente são algo como `dns1.p01.nsone.net`)
-6. Aguarde até 24h para propagar — geralmente é mais rápido
-
-### Opção B — Subdomínio gratuito no Netlify (enquanto configura o DNS)
-Vá em **"Domain management" → "Options" → "Edit site name"** e escolha um nome temporário como `rastreioneuro.netlify.app`
+1. Use credenciais de teste/sandbox do Mercado Pago.
+2. Publique o site novamente na Netlify.
+3. Faca um rastreio completo.
+4. Clique para desbloquear o relatorio.
+5. Use os cartoes de teste indicados pela documentacao do Mercado Pago.
+6. Quando tudo estiver funcionando, troque para as credenciais de producao.
 
 ---
 
-## ETAPA 7 — Adicionar botão no seu site Wix
+## 5. Configurar dominio
 
-1. No Wix, edite a página onde quer adicionar o acesso ao RAN
-2. Adicione um botão (ex: "Fazer Rastreio Completo")
-3. No link do botão, coloque a URL do seu site RAN (ex: `https://ran.netlify.app`)
-4. Marque "Abrir em nova aba"
-
----
-
-## Testando o pagamento (antes de ir ao ar)
-
-Para testar sem cobrar de verdade:
-
-1. No painel do Mercado Pago, use as **credenciais de sandbox** (teste) no lugar das credenciais de produção
-2. Use os [cartões de teste do Mercado Pago](https://www.mercadopago.com.br/developers/pt/docs/checkout-pro/additional-content/your-integrations/test/cards):
-   - Cartão aprovado: `5031 4332 1540 6351` | CVV: `123` | Validade: qualquer data futura
+1. Na Netlify, va em **Domain management**.
+2. Clique em **Add custom domain**.
+3. Digite `rastreioneuro.com.br`.
+4. A Netlify vai informar os nameservers.
+5. Acesse o painel do `registro.br`.
+6. Entre no dominio `rastreioneuro.com.br`.
+7. Troque os nameservers pelos indicados pela Netlify.
+8. Aguarde a propagacao. Pode levar ate 24 horas.
 
 ---
 
-## Custos estimados (por mês)
+## 6. Formulario de suporte
 
-| Serviço | Custo |
-|---------|-------|
-| Netlify (Starter) | Gratuito |
-| GitHub | Gratuito |
-| OpenAI API | Varia conforme o modelo escolhido e o tamanho das respostas |
-| Mercado Pago | 4,99% + R$ 0,49 por transação aprovada |
-| Domínio .com.br | ~R$ 40/ano (opcional) |
+O formulario de suporte ja esta preparado para Netlify Forms.
 
-Para cada R$ 89,99 recebido, a taxa final depende do meio de pagamento e do prazo de recebimento escolhido no Mercado Pago.
+Depois do deploy:
 
----
+1. Acesse o painel do site na Netlify.
+2. Va em **Forms**.
+3. Envie uma mensagem de teste pelo site.
+4. Confirme se a mensagem aparece no painel.
 
-## Dúvidas frequentes
-
-**P: E se a análise de IA falhar?**
-R: O sistema tem um fallback automático — ele gera um texto padrão baseado nos percentuais, sem depender da API.
-
-**P: Os dados dos usuários ficam salvos onde?**
-R: Apenas no navegador do próprio usuário (localStorage). Nenhum dado pessoal vai para servidores.
-
-**P: Posso mudar o preço?**
-R: Sim. Em `index.html`, procure por `89.99` e troque pelo valor desejado. Em `create-payment.js`, o valor vem do front-end.
-
-**P: E se o usuário fechar o navegador após pagar?**
-R: Os dados ficam em localStorage. Se o usuário voltar ao site no mesmo navegador/dispositivo e clicar de novo no link de pagamento aprovado, o sistema vai recuperar os dados e mostrar o relatório.
+Voce tambem pode configurar notificacoes por e-mail dentro da Netlify.
 
 ---
 
-## Suporte
+## 7. Fluxo do cliente
 
-Em caso de dúvidas técnicas, envie email para: neuropsicologaalinevicente@gmail.com
+1. A pessoa informa nome ou pseudonimo, data de nascimento e autodescricao.
+2. Responde 77 perguntas de rastreio.
+3. O sistema calcula 13 indicadores.
+4. A pessoa ve apenas uma previa limitada.
+5. Para ver todas as porcentagens, sintese clinica, graficos e baixar PDF/Word, ela paga R$ 89,99.
+6. Apos pagamento aprovado, o relatorio completo e liberado.
+
+---
+
+## 8. Checklist antes de vender
+
+- `OPENAI_API_KEY` configurada na Netlify.
+- `MERCADOPAGO_ACCESS_TOKEN` configurado na Netlify.
+- `SITE_URL` configurada com a URL correta.
+- Deploy novo feito depois de salvar as variaveis.
+- Pagamento testado em sandbox.
+- Pagamento testado em producao com valor real baixo, se possivel.
+- Formulario de suporte testado.
+- Dominio conectado e com HTTPS ativo.
+- Aviso de que nao e diagnostico mantido no site e no PDF.
+
+---
+
+## 9. Custos
+
+| Servico | Observacao |
+|---|---|
+| GitHub | gratuito para repositorio publico |
+| Netlify | plano gratuito pode ser suficiente no inicio |
+| OpenAI | varia conforme modelo, tamanho das respostas e volume de uso |
+| Mercado Pago | cobra taxa por transacao aprovada |
+| Dominio | pago no registro.br |
+
+Para cada venda de R$ 89,99, o valor liquido depende da taxa do Mercado Pago e do prazo de recebimento escolhido.
+
+---
+
+## 10. Suporte tecnico
+
+E-mail de suporte: `neuropsicologaalinevicente@gmail.com`
+

@@ -36,7 +36,7 @@ exports.handler = async (event) => {
       items: [
         {
           title: 'RastreioNeuro – Rastreio para Avaliação Neuropsicológica',
-          description: 'Relatório completo com análise de IA, gráfico radar e PDF para download',
+          description: 'Relatório completo com síntese clínica, gráfico radar e PDF para download',
           unit_price: Number(amount),
           quantity: 1,
           currency_id: 'BRL',

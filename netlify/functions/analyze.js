@@ -8,14 +8,17 @@ const OpenAI = require('openai');
 const DISORDERS = {
   tdah: 'Transtorno do Deficit de Atencao e Hiperatividade',
   tea: 'Transtorno do Espectro Autista',
-  tpb: 'Transtorno de Personalidade Borderline',
-  tpoc: 'Transtorno de Personalidade Obsessivo-Compulsiva',
-  dep: 'Transtorno Depressivo Maior',
+  ah: 'Altas Habilidades / Superdotacao',
   tag: 'Transtorno de Ansiedade Generalizada',
   panic: 'Transtorno do Panico',
+  agor: 'Agorafobia',
   tas: 'Transtorno de Ansiedade Social',
   toc: 'Transtorno Obsessivo-Compulsivo',
-  ah: 'Altas Habilidades / Superdotacao',
+  dep: 'Transtornos Depressivos',
+  bipolar: 'Transtornos Bipolares e Relacionados',
+  cyclo: 'Transtorno Ciclotimico',
+  tpb: 'Transtorno de Personalidade Borderline',
+  tpoc: 'Transtorno de Personalidade Obsessivo-Compulsiva',
 };
 
 const REQUIRED_IDS = Object.keys(DISORDERS);
@@ -57,12 +60,19 @@ exports.handler = async (event) => {
     const response = await client.responses.create({
       model,
       instructions: [
-        'Voce e um assistente de apoio a rastreio neuropsicologico.',
-        'Escreva em portugues do Brasil, com tom acolhedor, serio e profissional.',
+        'Voce apoia a elaboracao de uma sintese de rastreio neuropsicologico baseada em autorrelato.',
+        'Escreva em portugues do Brasil, com tom clinico, acolhedor, especifico e profissional.',
+        'A devolutiva publica deve informar que o rastreio e estruturado segundo DSM-5-TR e CID-11.',
+        'Nao mencione IA, inteligencia artificial, modelo, OpenAI, algoritmo ou automacao no texto entregue.',
         'Nunca afirme diagnostico. Use termos como indicadores, sinais, rastreio, hipoteses a investigar e recomendacao de avaliacao profissional.',
         'Nao diga que a pessoa tem um transtorno. Diga que as respostas sugerem maior ou menor presenca de caracteristicas associadas.',
+        'Diferencie criterios por inicio, duracao, curso, padrao episodico, persistencia, multiplos contextos e prejuizo funcional.',
+        'Para TDAH e TEA, valorize inicio no periodo do desenvolvimento e presenca em diferentes contextos.',
+        'Para bipolaridade e ciclotimia, valorize episodio, energia aumentada, sono reduzido, duracao, alternancia e diferencie de reatividade emocional de personalidade.',
+        'Para ansiedade, diferencie preocupacao generalizada, ataques de panico, agorafobia e medo de avaliacao social.',
+        'Para TOC, diferencie obsessao/compulsao de perfeccionismo de personalidade.',
         'Se houver conteudo de sofrimento intenso, autolesao ou risco, recomende buscar ajuda profissional imediata e suporte de emergencia.',
-        'Cada texto deve ter entre 90 e 150 palavras, mencionar a porcentagem recebida e orientar o que merece ser investigado.',
+        'Cada texto deve ter entre 110 e 170 palavras, mencionar a porcentagem recebida, principais sinais marcados, pontos diferenciais e proximos passos.',
       ].join(' '),
       input: buildPrompt(payload),
       text: {
@@ -73,7 +83,7 @@ exports.handler = async (event) => {
           schema: buildSchema(),
         },
       },
-      max_output_tokens: 3200,
+      max_output_tokens: 5200,
     });
 
     const text = extractResponseText(response);
@@ -107,7 +117,7 @@ function buildPayload(body) {
     name: String(body.name || 'Pessoa avaliada').slice(0, 80),
     description: String(body.description || '').slice(0, 3000),
     scores,
-    answers: Array.isArray(body.answers) ? body.answers.slice(0, 80) : [],
+    answers: Array.isArray(body.answers) ? body.answers.slice(0, 120) : [],
   };
 }
 
@@ -118,7 +128,7 @@ function buildPrompt(payload) {
 
   const answers = payload.answers
     .filter((item) => item && item.d && item.r)
-    .map((item) => `- ${DISORDERS[item.d] || item.d}: "${item.q || ''}" -> ${item.r}`)
+    .map((item) => `- ${DISORDERS[item.d] || item.d} | ${item.cat || 'Sem categoria'} | ${item.type || 'freq'}: "${item.q || ''}" -> ${item.r}`)
     .join('\n');
 
   return [
@@ -131,7 +141,7 @@ function buildPrompt(payload) {
     'Respostas do questionario:',
     answers || 'Nao informadas.',
     '',
-    'Tarefa: gere um texto individual para cada indicador. O texto deve destacar caracteristicas observadas, possiveis impactos funcionais e proximos passos para apresentar a um neuropsicologo, psiquiatra, neurologista ou medico especialista. Reforce que o resultado e um rastreio, nao um diagnostico.',
+    'Tarefa: gere um texto individual para cada indicador. O texto deve ser especifico, clinico e util para levar a um neuropsicologo, psiquiatra, neurologista ou medico especialista. Inclua o que favorece a hipotese, o que precisa ser diferenciado e quais informacoes profissionais deveriam ser investigadas. Reforce que o resultado e um rastreio, nao um diagnostico.',
   ].join('\n');
 }
 
@@ -171,7 +181,7 @@ function normalizeAnalysis(parsed) {
   const analysis = parsed && parsed.analysis ? parsed.analysis : {};
   for (const id of REQUIRED_IDS) {
     if (!analysis[id]) {
-      analysis[id] = `O indicador de ${DISORDERS[id]} foi calculado, mas a analise textual nao foi retornada pela IA. Recomenda-se interpretar o percentual como parte de um rastreio inicial, sem valor diagnostico, e levar o resultado para avaliacao profissional.`;
+      analysis[id] = `O indicador de ${DISORDERS[id]} foi calculado, mas a sintese textual nao foi concluida. Recomenda-se interpretar o percentual como parte de um rastreio inicial, sem valor diagnostico, e levar o resultado para avaliacao profissional.`;
     }
   }
   return { analysis };
