@@ -1189,6 +1189,7 @@ const App={
   answers:{},
   scores:{},
   analysis:{},
+  analysisReady:false,
   currentQ:0,
   advanceTimer:null,
   chart:null,
@@ -1304,12 +1305,11 @@ function levelOf(pct){
 function finishQuiz(){
   goTo('analyzing');
   calcScores();
-  setTimeout(()=>runAnalysis(),800);
+  setTimeout(()=>preparePreview(),800);
 }
 
-async function runAnalysis(){
-  // Monta payload compacto
-  const payload={
+function buildAnalysisPayload(){
+  return {
     name:App.userData.name,
     description:App.userData.description,
     scores:App.scores,
@@ -1318,20 +1318,48 @@ async function runAnalysis(){
       return {q:q.text,cat:q.cat,r:opts[App.answers[i]??0]?.t||'Não informado',d:q.d,type:q.opts||'freq'};
     })
   };
+}
+
+function saveSession(){
+  localStorage.setItem('ran_session',JSON.stringify({
+    userData:App.userData,
+    answers:App.answers,
+    scores:App.scores,
+    analysis:App.analysis||{},
+    analysisReady:!!App.analysisReady,
+    ts:Date.now()
+  }));
+}
+
+function preparePreview(){
+  App.analysis={};
+  App.analysisReady=false;
+  saveSession();
+  setTimeout(()=>{renderPreview();goTo('preview');},1400);
+}
+
+function hasCompleteAnalysis(analysis){
+  return !!analysis&&DISORDERS.every(d=>typeof analysis[d.id]==='string'&&analysis[d.id].trim().length>20);
+}
+
+async function runAnalysis(){
+  const payload=buildAnalysisPayload();
   try{
     const r=await fetch('/.netlify/functions/analyze',{
       method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)
     });
-    if(r.ok){const data=await r.json();App.analysis=data.analysis||{};}
+    if(r.ok){
+      const data=await r.json();
+      App.analysis=data.analysis||{};
+      App.analysisReady=hasCompleteAnalysis(App.analysis);
+    }
     else{throw new Error();}
-  }catch{App.analysis=buildFallbackAnalysis();}
-
-  // Salva sessão no localStorage para recuperar após pagamento
-  localStorage.setItem('ran_session',JSON.stringify({
-    userData:App.userData,answers:App.answers,scores:App.scores,analysis:App.analysis,ts:Date.now()
-  }));
-
-  setTimeout(()=>{renderPreview();goTo('preview');},6200);
+  }catch{
+    App.analysis=buildFallbackAnalysis();
+    App.analysisReady=false;
+  }
+  saveSession();
+  return App.analysis;
 }
 
 function buildFallbackAnalysis(){
@@ -1439,18 +1467,29 @@ function restoreSessionState(){
     App.answers=s.answers||{};
     App.scores=s.scores;
     App.analysis=s.analysis||{};
+    App.analysisReady=!!s.analysisReady||hasCompleteAnalysis(App.analysis);
     return true;
   }
   return false;
 }
 
-function openFullReportFromSession(){
-  if(restoreSessionState()){
-    window.history.replaceState({},'',window.location.pathname);
-    renderFullResults();goTo('full-results');
+async function ensurePaidAnalysis(){
+  if(App.analysisReady||hasCompleteAnalysis(App.analysis)){
+    App.analysisReady=true;
+    saveSession();
     return true;
   }
-  if(Object.keys(App.scores||{}).length){
+  goTo('analyzing');
+  await runAnalysis();
+  return true;
+}
+
+async function openFullReportFromSession(){
+  const hasSession=restoreSessionState();
+  const hasScores=Object.keys(App.scores||{}).length>0;
+  if(hasSession||hasScores){
+    window.history.replaceState({},'',window.location.pathname);
+    await ensurePaidAnalysis();
     renderFullResults();goTo('full-results');
     return true;
   }
@@ -1484,7 +1523,7 @@ async function initiatePayment(btnEl){
         couponCode:data.couponCode,discountPercent:data.discountPercent,ts:Date.now()
       }));
       setCouponStatus(scope,'Cupom aplicado. Relatório completo liberado.','ok');
-      if(!openFullReportFromSession())alert('Cupom aplicado, mas não encontrei a sessão do rastreio. Refaça o rastreio para gerar o relatório.');
+      if(!(await openFullReportFromSession()))alert('Cupom aplicado, mas não encontrei a sessão do rastreio. Refaça o rastreio para gerar o relatório.');
       return;
     }
     if(!data.init_point)throw new Error('Checkout não retornou link de pagamento.');
@@ -1517,7 +1556,7 @@ async function verifyPaidAccess(btnEl){
     });
     const data=await r.json();
     if(r.ok&&data.approved){
-      if(openFullReportFromSession())return;
+      if(await openFullReportFromSession())return;
       alert('Pagamento aprovado, mas não encontrei as respostas salvas neste navegador. Reabra no mesmo aparelho usado para responder ou use um cupom interno para gerar novamente.');
       return;
     }
@@ -1545,7 +1584,7 @@ async function checkPaymentReturn(){
       });
       const data=await r.json();
       if(r.ok&&data.approved){
-        if(openFullReportFromSession())return;
+        if(await openFullReportFromSession())return;
       }
     }catch{}
     if(status==='pending'){
@@ -1583,7 +1622,7 @@ async function resumeCheckoutIfNeeded(){
     });
     const data=await r.json();
     if(r.ok&&data.approved){
-      openFullReportFromSession();
+      await openFullReportFromSession();
       return;
     }
   }catch{}
